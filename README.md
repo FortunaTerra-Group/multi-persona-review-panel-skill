@@ -35,10 +35,11 @@ git clone https://github.com/FortunaTerra-Group/multi-persona-review-panel-skill
 cp -r multi-persona-review-panel-skill/skills/multi-persona-review-panel .claude/skills/
 ```
 
-Or load the repository as a plugin for one session:
+Or install it as a plugin from FortunaTerra's marketplace:
 
 ```bash
-claude --plugin-dir ./multi-persona-review-panel-skill
+claude plugin marketplace add FortunaTerra-Group/claude-plugins
+claude plugin install multi-persona-review-panel@fortunaterra
 ```
 
 Then invoke `/multi-persona-review-panel` on a branch before opening the PR.
