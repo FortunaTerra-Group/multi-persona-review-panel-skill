@@ -1,0 +1,11 @@
+{
+  "name": "multi-persona-review-panel",
+  "description": "Convene a small panel of independent reviewer lenses (architecture, security, quality, performance) on a diff before opening a PR, each returning a concrete SIGN / SIGN-WITH-CHANGE / BLOCK verdict.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Vivek Iyer",
+    "url": "https://github.com/FortunaTerra-Group"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/FortunaTerra-Group/multi-persona-review-panel-skill"
+}
