@@ -33,52 +33,60 @@ Redis counter helper and a config module, omitted here for brevity.
 
 ## Panel: 4 lenses convened
 
+This is a condensed transcript of a real run of the skill on the branch above. Each lens ran as
+its own agent with the diff, the files it touches, and the contract; each executed probes against
+the code before returning.
+
 **Architecture: BLOCK**
 > `get_tenant_limit` issues a synchronous DB query on every request in the hot path (called at
 > line 4, query at line 14). The contract's DO-NOT list names this exact case: "config lookup
-> must be cached, not queried live." A direct contract violation is a blocking defect, not a
-> style note. Cache the tier-to-limit mapping (even a 60s in-process TTL) and invalidate it from
-> the admin write path planned for wave 2. `middleware/rate_limit.py:4,14`
+> must be cached, not queried live." Probe: five requests, `db.query_count == 5`. A direct
+> contract violation is a blocking defect. Also: `UNLIMITED_TIER_TENANTS` is defined in config
+> and imported by nothing, so the effective unlimited set silently becomes "whatever the tier
+> table says," a second owner for a list the contract gave one owner. Cache the lookup with an
+> invalidation hook for the wave-2 admin path. `middleware/rate_limit.py:4,14`
 
-**Security: SIGN**
-> `tenant_id` is read from `request.tenant_id` (line 3), which the existing auth middleware sets
-> upstream of this one. No new trust boundary is introduced and no client-supplied header is
-> trusted directly. No blocking issue. One non-blocking note: confirm the admin endpoint planned
-> for wave 2 requires the same auth level as other tenant-config mutations, since it is not in
-> this diff.
+**Security: BLOCK**
+> Unlimited-tier tenants are throttled: probe, 101 requests as an enterprise tenant, the 101st
+> returns 429. That is a denial of service against the customer class the contract says must
+> see no change. Second: a request with no `tenant_id` (auth skipped or misordered) lands in a
+> shared key `ratelimit:None:...` instead of failing closed; one anonymous caller can 429 every
+> other pre-auth request. `tenant_id` itself comes from the auth middleware, the SQL is
+> parameterized, and the key cannot collide across tenants, so no new injection surface. Fix:
+> check the unlimited list before any I/O; reject a missing tenant with 401.
+> `middleware/rate_limit.py:3,9`
 
 **Quality: BLOCK**
-> Two acceptance criteria from the contract are not met and neither has a test.
-> (1) The unlimited-tier list is never consulted: `count > limit` (line 9) is enforced for every
-> tenant, and a tenant with no tier row falls through to `DEFAULT_LIMIT` (line 15), so the
-> customers the contract says must see no change are the ones most likely to be throttled. This
-> is the default-scenario question from step 3, and the answer is no.
-> (2) The contract specifies a sliding window; this key (line 5) is a fixed window named by
-> `current_window()`, which lets a tenant send `limit` requests in the last second of one window
-> and `limit` more in the first second of the next. Nothing pins the window semantics.
-> Needs: the unlimited-tier check before enforcement, with a test; and either the sliding window
-> the contract asked for or a contract amendment, plus a boundary test asserting the accepted
-> rate over any span of `WINDOW_SECONDS`. `middleware/rate_limit.py:5,9,15`
+> Zero of the contract's three evidence items has a test. (1) Boundary: the key is a fixed window
+> named by `current_window()`; probe with limit 3, six requests accepted inside a two-second span
+> across a boundary, twice the limit. The contract specified a sliding window. (2) Exempt tenant:
+> no test, and it fails. (3) Zero DB queries after warm-up: no test, and `Database.query_count`
+> exists on main for exactly this assertion. One more: `test_unknown_tenant_uses_default_limit`
+> passes for any limit of one or more; it never observes the default. And a tier row whose
+> `rate_limit` is NULL raises `TypeError` at `count > limit`, which the test double cannot reach.
+> `middleware/rate_limit.py:5,9,15`; `tests/test_rate_limit.py:39`
 
-**Performance: SIGN-WITH-CHANGE**
-> Same root cause as the Architecture finding, from the other direction: a DB round-trip plus a
-> Redis round-trip per request roughly doubles hot-path latency against the pre-change baseline.
-> Once the lookup is cached this resolves; flagging it separately because a cache with too long
-> a TTL brings the profile back under a miss storm. One more item: a crash between `incr` (line
-> 6) and `expire` (line 8) leaves a key with no TTL. Because the key is per window it is a slow
-> memory leak rather than a lockout, but it is a leak. Set the TTL in the same operation as the
-> increment.
+**Performance: BLOCK**
+> Same hot-path finding, measured: baseline on main is zero DB and zero Redis calls per
+> authenticated request; this branch adds one DB round trip and one Redis round trip to every
+> request, and the DB query runs before the limit check, so rejected requests pay it too. The
+> limiter forwards a tenant's burst to the shared database at full rate. Separately, `incr` and
+> `expire` are two commands (lines 6 and 8): `INCR` is atomic, so this is not a counting race,
+> but a failure between the two leaves a key with no TTL. Because the key is per window it is a
+> slow memory leak, not a lockout. Do the increment and the TTL in one Lua script. The clock is
+> read directly from `time.time()`, so the boundary test cannot be written until it is injectable.
 
 ## Synthesis and fold
 
-Architecture and Performance found the same hot-path cost independently, so they fold into one
-change: replace the live query with a cached lookup (60s TTL, explicit invalidation hook left for
-the wave-2 admin API). Quality's BLOCK became two changes: check the unlimited-tier list (from the
-same cached config) before any counting, with a test for a listed tenant; and implement the
-sliding window the contract specified, with a boundary test. Performance's leak was closed by
-doing the increment and the TTL in a single Lua script. Security's SIGN stands; its note was
-carried into the wave-2 contract instead of blocking this PR.
+Four lenses, four BLOCKs, and three root causes, each found by all four independently: the
+live tier query on the hot path, the unlimited-tier list that nothing reads, and the fixed window
+where the contract said sliding. That convergence is the panel's strongest signal; it means the
+defects are in the code, not in one reviewer's taste. The fold was one change set: a cached tier
+lookup with an invalidation hook, the unlimited-tier check before any I/O, a sliding window with
+the increment and the TTL in one Lua script, an injectable clock, a 401 on a missing tenant, NULL
+limits falling back to the default, and the contract's three evidence tests plus a real
+default-limit test. Second run: four SIGNs.
 
-**Verdict after fold: mergeable.** Two BLOCKs and one required change, each concrete and named.
-Finding them before the push is the point; the alternative was a human reviewer's first pass, or
-production.
+**Verdict after fold: mergeable.** Every finding was concrete and named, and the green suite on
+the first branch had asked none of the questions that mattered. That is the point of running the
+panel before the push rather than after a human reviewer's first pass, or after production.

@@ -22,9 +22,10 @@ BLOCK. Each also checks four absences (the undo step, the test, the single owner
 the bad-day input), because a diff cannot show what was left out. You fold what comes back before
 you push.
 
-The worked example runs the panel on a rate-limiting middleware: two lenses find the same hot-path
-cost from different directions, one blocks on a contract violation, one blocks on a customer tier
-the code never checks, and the fold makes the PR mergeable.
+The worked example is a real run on a rate-limiting middleware with green tests: all four lenses
+block, three root causes are found by all four independently (a live query on the hot path, a
+customer tier the code never checks, a fixed window where the contract said sliding), and the
+fold makes the PR mergeable on the second run.
 
 ## Install
 
