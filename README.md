@@ -4,7 +4,8 @@
 
 > A Claude Code skill, Apache-2.0. The procedure is in
 > [`skills/multi-persona-review-panel/SKILL.md`](skills/multi-persona-review-panel/SKILL.md); a
-> worked run on a sample diff is in [`examples/example-run.md`](examples/example-run.md). This is
+> worked run on a sample diff is in [`examples/example-run.md`](examples/example-run.md), and the
+> diff itself is in [`review-panel-demo`](https://github.com/FortunaTerra-Group/review-panel-demo) so you can rerun it. This is
 > the pre-PR gate FortunaTerra runs on its own products, cut down to the mechanism. The rest of
 > this page is why it exists and how to install it.
 
