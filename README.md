@@ -25,8 +25,10 @@ you push.
 
 The worked example is a real run on a rate-limiting middleware with green tests: all four lenses
 block, three root causes are found by all four independently (a live query on the hot path, a
-customer tier the code never checks, a fixed window where the contract said sliding), and the
-fold makes the PR mergeable on the second run.
+customer tier the code never checks, a fixed window where the contract said sliding). The panel
+was rerun after each fold; the second run blocked on a test that could not fail, the third
+converged on one missing proof. Every lens's full output from all three runs is logged in the
+demo repository, labelled as the model output it is.
 
 ## Install
 
