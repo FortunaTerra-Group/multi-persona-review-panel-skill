@@ -1,7 +1,11 @@
 # Example run: reviewing the rate-limiting middleware PR
 
-A worked example of the panel this skill runs, on a sample diff. The feature is the one in the
-governed-build-loop skill's
+A worked example of the panel this skill runs, on a sample diff you can rerun yourself. The code
+is at [FortunaTerra-Group/review-panel-demo](https://github.com/FortunaTerra-Group/review-panel-demo):
+`main` is the service before the change, `feat/per-tenant-rate-limit` is the branch reviewed
+below, and `feat/per-tenant-rate-limit-folded` is the result after the fold. The defects in the
+branch were seeded to demonstrate the skill; the run also found things that were not seeded,
+called out where they appear. The feature is the one in the governed-build-loop skill's
 [example contract](https://github.com/FortunaTerra-Group/goal-contract/blob/main/plugin/examples/example-run.md)
 ("add per-tenant rate limiting to the public API", a fictional service called Acme Metrics API).
 Two clauses of that contract matter here: wave 1(a) specifies a *sliding-window* counter, and
@@ -33,9 +37,11 @@ Redis counter helper and a config module, omitted here for brevity.
 
 ## Panel: 4 lenses convened
 
-This is a condensed transcript of a real run of the skill on the branch above. Each lens ran as
-its own agent with the diff, the files it touches, and the contract; each executed probes against
-the code before returning.
+This is a condensed transcript of a real run of the skill on the branch above (2026-09-12). Each
+lens ran as its own agent with the diff, the files it touches, and the contract; each executed
+probes against the code before returning. Seeded: the hot-path query, the unread unlimited-tier
+list, the fixed window, and the two-call increment-and-expire. Not seeded, found anyway: the
+missing-tenant bucket, the NULL limit, the proxy default-limit test, and committed bytecode.
 
 **Architecture: BLOCK**
 > `get_tenant_limit` issues a synchronous DB query on every request in the hot path (called at
