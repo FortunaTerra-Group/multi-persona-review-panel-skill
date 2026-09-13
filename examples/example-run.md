@@ -128,8 +128,35 @@ admit, and the TTL in one Lua script; an injectable clock; public paths skipped 
 decision from auth's output rather than a second path list; NULL limits falling back to the
 default; an explicit fail-closed 503 when Redis is unavailable; `Retry-After` on both; the
 `django_db` mark removed so the healthz test guards the regression again; and the contract's
-three evidence tests plus a real default-limit test. Second run: four SIGNs.
+three evidence tests plus a real default-limit test.
 
-**Verdict after fold: mergeable.** Every finding was concrete and named, and the green suite on
-the first branch had asked none of the questions that mattered. That is the point of running the
-panel before the push rather than after a human reviewer's first pass, or after production.
+## What the second and third runs showed
+
+The author of the fold believed it was clean. It was not, and the second run said so: three
+SIGN-WITH-CHANGE and one BLOCK. The block was on a test, not on code. The boundary test's fake
+clock started twenty seconds into a fixed-window bucket, so its "burst, then two seconds later"
+never crossed a bucket edge, and the Quality lens proved it by swapping the sliding window for a
+fixed one: all eleven tests stayed green. The implementation was right; the proof was not. The
+other lenses found a `getattr` default that turned a mis-ordered middleware chain into "everyone
+is unlimited" with no signal, a process-local cache whose `invalidate()` and test over-claimed,
+a cache sized at Django's default of 300 entries so the tier query came back onto the hot path
+above 300 active tenants (measured: 100 percent miss at 400), and a Redis client with no socket
+timeouts, so "fails closed" was true for a refused connection and false for a stalled one.
+
+Those were folded. The third run returned four SIGN-WITH-CHANGE, converged on one item: the new
+timeouts were correct (three lenses measured 0.50 s against a real silent socket) but no test
+could see them, because the test fixture replaced the client factory with a lambda that discarded
+keyword arguments. Two lenses independently expected redis-py's retry policy to multiply the
+stall, measured it, and dropped the finding before reporting. That fold added a test that records
+what the factory receives and a test that opens a real accept-and-never-reply socket and asserts
+a 503 inside the bound; both fail with the timeouts removed. No fourth run was made.
+
+**Verdict after three runs: mergeable, with the remaining notes recorded for wave 2.** The runs
+converge; they do not reach four bare SIGNs, and a reader should not expect their own to either.
+The full output of every lens in all three runs, the briefs each was given, and a synthesis per
+run are in the demo repository under
+[`panel/`](https://github.com/FortunaTerra-Group/review-panel-demo/tree/main/panel). Everything
+there is Claude Opus 5 output from 2026-09-12 and is labelled as such; another model, or another
+day, will word it differently and may weigh a finding differently. What should reproduce is the
+shape: independent lenses, probes against the code, refutation before reporting, and findings
+that name a file and a line.
