@@ -11,8 +11,6 @@ Include:
 - steps to reproduce, or the prompt or input that triggers it
 - your assessment of the impact
 
-You may also use GitHub's private vulnerability reporting for this repository if it is enabled.
-
 ## Scope
 
 In scope: content in this repository that could cause harm when a user installs or runs it. Examples: skill instructions that direct an agent to take an unsafe or unrequested action, a manifest that points somewhere other than it should, a committed secret, or a dependency or script that does something its README does not say.
