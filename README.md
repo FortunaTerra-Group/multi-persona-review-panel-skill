@@ -46,7 +46,21 @@ claude plugin marketplace add FortunaTerra-Group/claude-plugins
 claude plugin install multi-persona-review-panel@fortunaterra
 ```
 
-Then invoke `/multi-persona-review-panel` on a branch before opening the PR.
+Then invoke the skill on a branch before opening the PR: `/multi-persona-review-panel` if you copied it into `.claude/skills/`, or `/multi-persona-review-panel:multi-persona-review-panel` if you installed the plugin (plugin skills are namespaced by plugin name).
+
+## What this plugin runs and sends
+
+The plugin is one skill file (`skills/multi-persona-review-panel/SKILL.md`) and a manifest (`.claude-plugin/plugin.json`). It contains no hooks, no MCP servers, no scripts, no binaries and no executable code, so installing it executes nothing.
+
+When you invoke the skill, it instructs the agent in your Claude Code session to:
+
+- work out the whole diff against the base branch, `git diff main...HEAD` is given only as an example; the skill names no command, so the agent chooses its own tools, subject to your permission settings
+- read the source files that diff touches
+- start one separate reviewer per review lens, as parallel sub-agents if your session supports them, and pass each one the diff and the relevant files; the skill asks for independent parallel reviewers and does not name a mechanism
+
+The reviewer lenses are asked to return findings and a verdict, not to make changes. In the synthesis step, though, the skill tells the agent to fold the required changes into the diff before you push, which means editing your source files (or the design or contract document, if that is what is under review), and to record the lens verdicts somewhere durable, such as the PR description. It names no file and no command for either; the agent uses your session's normal tools and permission settings.
+
+The plugin makes no network requests of its own, has no server or telemetry, and sends nothing to FortunaTerra. The diff and file contents are processed by the model in your session, and by the sub-agents, exactly as any other content in a Claude Code session is, under your Claude Code settings. Whatever tools your session has enabled are the only tools the agent can use.
 
 ## Where it fits
 
