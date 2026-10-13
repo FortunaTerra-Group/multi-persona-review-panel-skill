@@ -48,6 +48,20 @@ claude plugin install multi-persona-review-panel@fortunaterra
 
 Then invoke `/multi-persona-review-panel` on a branch before opening the PR.
 
+## What this plugin runs and sends
+
+The plugin is one skill file (`skills/multi-persona-review-panel/SKILL.md`) and a manifest (`.claude-plugin/plugin.json`). It contains no hooks, no MCP servers, no scripts, no binaries and no code of any kind, so installing it executes nothing.
+
+When you invoke the skill, it instructs the agent in your Claude Code session to:
+
+- work out the whole diff against the base branch, for example with `git diff main...HEAD`; this is a read-only git command that runs through Claude Code's normal tools and is subject to your permission settings
+- read the source files that diff touches
+- start one separate sub-agent per review lens, using Claude Code's own sub-agent mechanism, and pass each one the diff and the relevant files
+
+The skill does not tell the agent to write or modify any file. It suggests recording the verdicts in the PR description, which happens only if you ask for it.
+
+The plugin makes no network requests of its own, has no server or telemetry, and sends nothing to FortunaTerra. The diff and file contents are processed by the model in your session, and by the sub-agents, exactly as any other content in a Claude Code session is, under your Claude Code settings. Whatever tools your session has enabled are the only tools the agent can use.
+
 ## Where it fits
 
 The panel is the review step of a governed build loop. Upstream of it, a
